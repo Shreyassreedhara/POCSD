@@ -12,3 +12,5 @@ Topics covered
 6. Performance
 7. Fault tolerance 
 8. Atomicity
+
+The repository consists of 3 homeworks and 1 project. The design file explaining how the file system is designed is attached with all the directories. 
