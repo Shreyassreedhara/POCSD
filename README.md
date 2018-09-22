@@ -14,3 +14,8 @@ Topics covered
 8. Atomicity
 
 The repository consists of 3 homeworks and 1 project. The design file explaining how the file system is designed is attached with all the directories. 
+
+Author information for the project:
+
+1. Shreyas Gaadikere Sreedhara, Email: shreyasgaadikere@ufl.edu
+2. Nirali Patel, Email: niralipatel@ufl.edu
