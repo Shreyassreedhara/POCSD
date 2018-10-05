@@ -74,17 +74,17 @@ class Memory(LoggingMixIn, Operations):
         return self.fd
 
     def read(self, path, size, offset, fh):
-	s = ''															# initializing an empty string
-	i = len(self.data[path])										# store length of self.data[path] in i to check condition later in the while loop
-	m = 0															# initialize m to 0 to use in while loop later
-	while (i != 0):													# while loop to make the list into a string
+	s = ''												# initializing an empty string
+	i = len(self.data[path])									# store length of self.data[path] in i to check condition later in the while loop
+	m = 0												# initialize m to 0 to use in while loop later
+	while (i != 0):											# while loop to make the list into a string
 		popword = self.data[path].pop(m)							# take out the first string of self.data[path] and store it in popword
 		self.data[path].append(popword)								# add that string back to self.data[path] at the last
-		s = s + popword												# concatinate the string s and popword
-		i = i-1														# decrementing i 
+		s = s + popword										# concatinate the string s and popword
+		i = i-1											# decrementing i 
 		print ('popword: ' + popword)			
 	print (s)
-	offset = len(s)													# set offset till where the data was read
+	offset = len(s)											# set offset till where the data was read
 	return s 
 
     def readdir(self, path, fh):
@@ -99,7 +99,7 @@ class Memory(LoggingMixIn, Operations):
         try:
             del attrs[name]
         except KeyError:
-            pass        											# Should return ENOATTR
+            pass        										# Should return ENOATTR
 
     def rename(self, old, new):
         self.files[new] = self.files.pop(old)
@@ -117,30 +117,30 @@ class Memory(LoggingMixIn, Operations):
         return dict(f_bsize=512, f_blocks=4096, f_bavail=2048)
 
     def symlink(self, target, source):
-	final = []														# create an empty list 
+	final = []											# create an empty list 
 	var = 0
 	for i in range(0,len(source),n):								# for loop to convert source into a list
 		divdata = source[var:var+n]
 		var = var + n
-		final.append(divdata)										# appending divdata to final
-	source = final													# copy final into source							
+		final.append(divdata)									# appending divdata to final
+	source = final											# copy final into source							
         self.files[target] = dict(st_mode=(S_IFLNK | 0o777), st_nlink=1,
                                   st_size=len(source))
 	
         self.data[target] = source
 
     def truncate(self, path, length, fh=None):
-	s = ''															# initializing an empty string
-	i = len(self.data[path])										# store length of self.data[path] in i to check condition later in the while loop
-	m = 0															# initialize m to 0 to use in while loop later
-	while (i != 0):													# while loop to make the list into a string
+	s = ''												# initializing an empty string
+	i = len(self.data[path])									# store length of self.data[path] in i to check condition later in the while loop
+	m = 0												# initialize m to 0 to use in while loop later
+	while (i != 0):											# while loop to make the list into a string
 		popword = self.data[path].pop(m)							# take out the first string of self.data[path] and store it in popword
-		s = s + popword												# concatinate the string s and popword
+		s = s + popword										# concatinate the string s and popword
 		i = i-1	
 	s = s [:length]
 	final = []
 	var = 0
-	for i in range(0,len(s),n):										# for loop to convert string into list
+	for i in range(0,len(s),n):									# for loop to convert string into list
 		divdata = s[var:var+n]
 		var = var + n
 		final.append(divdata)
@@ -172,20 +172,20 @@ class Memory(LoggingMixIn, Operations):
 		print ('splitdata' + str(self.data[path]))     
 		
 	else:
-		var1 = 0													# declaring a constant
-		final2 = []													# initializing an empty list.
+		var1 = 0										# declaring a constant
+		final2 = []										# initializing an empty list.
 		strsize = len(self.data[path]) - 1							# calculating the length of the list already present and subtract one from it. This will later be 														used for the poping the last element of the list in self.data[path]
 		print ('length' + str(strsize))
 		print ('first element--------------------> ' +str(self.data[path][0]))
 		#print self.data[path]
-		laststr = self.data[path].pop(strsize)						# we are poping out the last element of self.data[path] and storing it.
-		new_word = laststr + data									# we are concatinating the last element of self.data[path] and the incoming data.
+		laststr = self.data[path].pop(strsize)							# we are poping out the last element of self.data[path] and storing it.
+		new_word = laststr + data								# we are concatinating the last element of self.data[path] and the incoming data.
 		for i in range(0,len(new_word),n):							# we are running a for loop for the length of new_word and dividing the new_word into strings of 8 														bytes. 
 			divdata = new_word[var1:var1+n]
-			var1 = var1 + n											# moving the pointer ahead, so that the next 8 bytes will be taken from the divdata.
-			final2.append(divdata)									# appending the 8 bytes of data in divdata with the list final2. 
+			var1 = var1 + n									# moving the pointer ahead, so that the next 8 bytes will be taken from the divdata.
+			final2.append(divdata)								# appending the 8 bytes of data in divdata with the list final2. 
 		self.data[path].extend(final2)								# adding the lists self.data[path] and final2. 
-		offset = offset + len(data)									# changing the offset.
+		offset = offset + len(data)								# changing the offset.
 		print (str(self.data[path]))
         	print (self.files[path]['st_size'])
 	self.files[path]['st_size'] = (len(self.data[path])-1) * n + len(self.data[path][-1])		# the st_size will be the length of the charcters in the self.data[path]
