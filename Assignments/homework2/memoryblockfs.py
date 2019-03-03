@@ -11,7 +11,7 @@ from time import time
 
 from fuse import FUSE, FuseOSError, Operations, LoggingMixIn
 
-n = 8
+block_size = 8
 
 if not hasattr(__builtins__, 'bytes'):
     bytes = str
@@ -56,7 +56,7 @@ class Memory(LoggingMixIn, Operations):
         try:
             return attrs[name]
         except KeyError:
-            return ''       										# Should return ENOATTR
+            return ''       							# Should return ENOATTR
 
     def listxattr(self, path):
         attrs = self.files[path].get('attrs', {})
@@ -73,19 +73,25 @@ class Memory(LoggingMixIn, Operations):
         self.fd += 1
         return self.fd
 
+###############################################################################################################
+# Commands: cat
+# All the words in the 'data' dictionary under the given path will be popped and added to a string and returned
+# The popped words are added back to their original place to maintain the state
+############################################################################################################### 
+
     def read(self, path, size, offset, fh):
-	s = ''												# initializing an empty string
-	i = len(self.data[path])									# store length of self.data[path] in i to check condition later in the while loop
-	m = 0												# initialize m to 0 to use in while loop later
-	while (i != 0):											# while loop to make the list into a string
-		popword = self.data[path].pop(m)							# take out the first string of self.data[path] and store it in popword
-		self.data[path].append(popword)								# add that string back to self.data[path] at the last
-		s = s + popword										# concatinate the string s and popword
-		i = i-1											# decrementing i 
-		print ('popword: ' + popword)			
-	print (s)
-	offset = len(s)											# set offset till where the data was read
-	return s 
+	result = ''											
+	length = len(self.data[path])						
+	index = 0												
+	while (length != 0):								
+		popword = self.data[path].pop(index)				
+		self.data[path].append(popword)					
+		result = result + popword						
+		length = length-1								 
+		print ('popped word: ' + popword)			
+	print ('result: ' + result)
+	offset = len(result)								# set offset till where the data was read
+	return result 
 
     def readdir(self, path, fh):
         return ['.', '..'] + [x[1:] for x in self.files if x != '/']
@@ -99,7 +105,7 @@ class Memory(LoggingMixIn, Operations):
         try:
             del attrs[name]
         except KeyError:
-            pass        										# Should return ENOATTR
+            pass        								# Should return ENOATTR
 
     def rename(self, old, new):
         self.files[new] = self.files.pop(old)
@@ -117,36 +123,40 @@ class Memory(LoggingMixIn, Operations):
         return dict(f_bsize=512, f_blocks=4096, f_bavail=2048)
 
     def symlink(self, target, source):
-	final = []											# create an empty list 
-	var = 0
-	for i in range(0,len(source),n):								# for loop to convert source into a list
-		divdata = source[var:var+n]
-		var = var + n
-		final.append(divdata)									# appending divdata to final
-	source = final											# copy final into source							
-        self.files[target] = dict(st_mode=(S_IFLNK | 0o777), st_nlink=1,
-                                  st_size=len(source))
-	
+	    final = []											# create an empty list 
+	    var = 0
+	    for i in range(0,len(source),block_size):			# for loop to convert source into a list
+		    divdata = source[var:var+block_size]
+		    var = var + block_size
+		    final.append(divdata)							# appending divdata to final
+	    source = final										# copy final into source							
+        self.files[target] = dict(st_mode=(S_IFLNK | 0o777), st_nlink=1, st_size=len(source))
         self.data[target] = source
 
+########################################################################################
+# Commands: truncate
+# This method trims the data to a given length that is specified as a parameter
+# We first take all the words in the list, append them, trim them to the required length
+# Then we store the result as blocks back in the list
+########################################################################################
+
     def truncate(self, path, length, fh=None):
-	s = ''												# initializing an empty string
-	i = len(self.data[path])									# store length of self.data[path] in i to check condition later in the while loop
-	m = 0												# initialize m to 0 to use in while loop later
-	while (i != 0):											# while loop to make the list into a string
-		popword = self.data[path].pop(m)							# take out the first string of self.data[path] and store it in popword
-		s = s + popword										# concatinate the string s and popword
-		i = i-1	
-	s = s [:length]
-	final = []
-	var = 0
-	for i in range(0,len(s),n):									# for loop to convert string into list
-		divdata = s[var:var+n]
-		var = var + n
-		final.append(divdata)
-	self.data[path] = final
+	    string = ''											
+	    tot_len = len(self.data[path])							
+	    index = 0												
+	    while (tot_len != 0):									
+		    popword = self.data[path].pop(index)				
+		    string = string + popword						
+		    tot_len = tot_len - 1	
+	    string = string [:length]
+	    final = []
+	    var = 0
+	    for i in range(0, len(string), block_size):				
+		    divdata = string[var : var + block_size]
+		    var = var + block_size
+		    final.append(divdata)
+	    self.data[path] = final
         #self.data[path] = self.data[path][:length]
-	
         self.files[path]['st_size'] = length
 
     def unlink(self, path):
@@ -158,37 +168,42 @@ class Memory(LoggingMixIn, Operations):
         self.files[path]['st_atime'] = atime
         self.files[path]['st_mtime'] = mtime
 
+######################################################################################################
+# Commands: echo
+# based on if the write is happening to a new file or to a already written file, two cases can be seen
+######################################################################################################
+
     def write(self, path, data, offset, fh):
-	if (len(self.data[path]) == 0):
-		final = []
-		var = 0
-		for i in range(0,len(data),n):
-			divdata = data[var:var+n]
-			var = var + n
-			final.append(divdata)
-		offset = offset + len(data)
-		print (final) 
-		self.data[path] = final  
-		print ('splitdata' + str(self.data[path]))     
-		
-	else:
-		var1 = 0										# declaring a constant
-		final2 = []										# initializing an empty list.
-		strsize = len(self.data[path]) - 1							# calculating the length of the list already present and subtract one from it. This will later be 														used for the poping the last element of the list in self.data[path]
-		print ('length' + str(strsize))
-		print ('first element--------------------> ' +str(self.data[path][0]))
-		#print self.data[path]
-		laststr = self.data[path].pop(strsize)							# we are poping out the last element of self.data[path] and storing it.
-		new_word = laststr + data								# we are concatinating the last element of self.data[path] and the incoming data.
-		for i in range(0,len(new_word),n):							# we are running a for loop for the length of new_word and dividing the new_word into strings of 8 														bytes. 
-			divdata = new_word[var1:var1+n]
-			var1 = var1 + n									# moving the pointer ahead, so that the next 8 bytes will be taken from the divdata.
-			final2.append(divdata)								# appending the 8 bytes of data in divdata with the list final2. 
-		self.data[path].extend(final2)								# adding the lists self.data[path] and final2. 
-		offset = offset + len(data)								# changing the offset.
-		print (str(self.data[path]))
-        	print (self.files[path]['st_size'])
-	self.files[path]['st_size'] = (len(self.data[path])-1) * n + len(self.data[path][-1])		# the st_size will be the length of the charcters in the self.data[path]
+        if (len(self.data[path]) == 0):
+            final = []
+            var = 0
+            for i in range(0,len(data),block_size):
+                divdata = data[var:var+block_size]
+                var = var + block_size
+                final.append(divdata)
+            offset = offset + len(data)
+            print (final) 
+            self.data[path] = final  
+            print ('splitdata' + str(self.data[path]))     
+            
+        else:
+            var1 = 0										
+            final2 = []										
+            strsize = len(self.data[path]) - 1				
+            print ('length' + str(strsize))
+            print ('first element--------------------> ' +str(self.data[path][0]))
+            #print self.data[path]
+            laststr = self.data[path].pop(strsize)			
+            new_word = laststr + data						# concatinating the last element of self.data[path] and the incoming data.
+            for i in range(0,len(new_word),block_size):		# running a for loop for the length of new_word and dividing the new_word into strings of 8 bytes. 
+                divdata = new_word[var1:var1+block_size]
+                var1 = var1 + block_size					# moving the pointer ahead, so that the next 8 bytes will be taken from the divdata.
+                final2.append(divdata)						 
+            self.data[path].extend(final2)					 
+            offset = offset + len(data)						# changing the offset.
+            print (str(self.data[path]))
+                print (self.files[path]['st_size'])
+        self.files[path]['st_size'] = (len(self.data[path])-1) * block_size + len(self.data[path][-1])		# the st_size will be the length of the charcters in the self.data[path]
         return len(data)
 
 		
