@@ -1,4 +1,4 @@
-# Client/Server file system
+# Client/Server in-memory filesystem
 
 The aim of this project is to build a client/server file system, which stores its data into a remote server instead of a local computers. The FUSE filesystem is designed such that the storage of the file system data takes place in the memory of server.
 
